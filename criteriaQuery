@@ -1,0 +1,225 @@
+package com.example.demo.service;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+import javax.servlet.http.HttpServletRequest;
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.common.CommonCalculator;
+import com.example.demo.dmsUser.DMSFolder;
+import com.example.demo.dmsUser.DataFieldDetails;
+import com.example.demo.dto.DocVO;
+import com.example.demo.modal.DMSDocDataTag;
+import com.example.demo.modal.DMSDocument;
+import com.example.demo.repository.DMSDocumentRepository;
+import com.example.demo.ws.UploadDocumentRequest;
+
+@Service
+public class DMSDocumentService {
+
+	@Autowired
+	DMSDocumentRepository dmsDocumentRepository;
+	@Autowired
+	CommonCalculator commonCalculator;
+
+	@Autowired
+	private EntityManager entityManager;
+
+	public void saveDocument(DMSDocDataTag dMSDocDataTag, List<DataFieldDetails> dataFieldDetails2, Long jsonObj,
+			String userName, String fileName) {
+
+		DMSDocument dMSDoc = new DMSDocument();
+
+		dMSDoc.setDocId(dMSDocDataTag.getDocId());
+		dMSDoc.setVersion(dMSDocDataTag.getVersion());
+		dMSDoc.setComment(dMSDocDataTag.getComment());
+		dMSDoc.setDataTag(dMSDocDataTag.getDataTag());
+		dMSDoc.setDocId(jsonObj.intValue());
+		dMSDoc.setDocumentName(dMSDocDataTag.getDocumentName());
+		dMSDoc.setIsCheckOut("0");
+		//
+		dMSDoc.setFolderId(Integer.parseInt(dMSDocDataTag.getFolderId()));
+//		dMSDoc.setUserId(userName == null ? "" : userName);
+//		dMSDoc.setCreatedDate(new Date());
+//		dMSDoc.setModifyDate(new Date());
+		dMSDoc.setStatus(1);
+		dMSDoc.setDocExpiryDate(dMSDocDataTag.getDocExpiryDate());
+		dMSDoc.setFileName(fileName);
+		dMSDoc.setTypeOfUpload(dMSDocDataTag.getTypeOfUpload()); // added by shadma
+		
+		commonCalculator.mapBaseObj(dMSDoc,userName);
+		dmsDocumentRepository.save(dMSDoc);
+	}
+
+	public void updateDocument(DMSDocDataTag dMSDocDataTag, String userName, DMSDocument dmsDocFromDb) {
+
+		DMSDocument dMSDoc = new DMSDocument();
+
+		dMSDoc.setDocId(dMSDocDataTag.getDocId());
+		dMSDoc.setComment(dMSDocDataTag.getComment());
+		dMSDoc.setDataTag(dMSDocDataTag.getDataTag());
+		dMSDoc.setDocumentName(dMSDocDataTag.getDocumentName());
+		dMSDoc.setIsCheckOut("0");
+//		dMSDoc.setUserId(userName == null ? "" : userName);
+//		dMSDoc.setModifyDate(new Date());
+		dMSDoc.setStatus(1);
+		dMSDoc.setDocExpiryDate(dMSDocDataTag.getDocExpiryDate());
+
+		// overwriting things which are not allowed to be changed
+		dMSDoc.setVersion(dmsDocFromDb.getVersion());
+		dMSDoc.setFolderId(dmsDocFromDb.getFolderId());
+		dMSDoc.setFileName(dmsDocFromDb.getFileName());
+		dMSDoc.setTypeOfUpload(dmsDocFromDb.getTypeOfUpload()); // added by shadma
+		commonCalculator.mapBaseObj(dMSDoc,userName);
+		dmsDocumentRepository.save(dMSDoc);
+	}
+
+	public void saveDocumentWS(UploadDocumentRequest uploadDocumentRequest, List<DataFieldDetails> dataFieldDetails2,
+			Long jsonObj, String docName) { // TODO
+											// Auto-generated
+											// method
+
+		DMSDocument dMSDoc = new DMSDocument();
+
+		// dMSDoc.setDocId(dMSDocDataTag.getDocId());
+		dMSDoc.setVersion("1.0");
+		dMSDoc.setComment(uploadDocumentRequest.getComments());
+		dMSDoc.setDataTag(uploadDocumentRequest.getDataTag());
+		dMSDoc.setDocId(jsonObj.intValue());
+		dMSDoc.setDocumentName(docName);
+		dMSDoc.setIsCheckOut("0");
+		//
+		dMSDoc.setFolderId(uploadDocumentRequest.getFolderId());
+		// dMSDoc.setUserId(session.getAttribute("username")==null?"":(String)session.getAttribute("username"));
+//		dMSDoc.setUserId(uploadDocumentRequest.getUserId());
+//		dMSDoc.setCreatedDate(new Date());
+//		dMSDoc.setModifyDate(new Date());
+		dMSDoc.setStatus(1);
+		//
+
+		dmsDocumentRepository.save(dMSDoc);
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Transactional
+	public ArrayList getDocumentList(String userName, String folderId, HttpServletRequest request) {
+		ArrayList docID = null;
+
+		StringBuilder queryBuilder = new StringBuilder(
+				"SELECT e.docId FROM DMSDocument  e where e.userId = " + "'" + userName + "'");
+		queryBuilder.append(" and e.folderId= '" + Integer.parseInt(folderId) + "'");
+		docID = (ArrayList) entityManager.createQuery(queryBuilder.toString()).getResultList();
+
+		return docID;
+
+	}
+
+	@SuppressWarnings("rawtypes")
+	@Transactional
+	public ArrayList getDocumentListAlt(String userName, String folderId) {
+		ArrayList docID = null;
+
+		StringBuilder queryBuilder = new StringBuilder(
+				"SELECT e.docId FROM DMSDocument  e where e.userId = " + "'" + userName + "'");
+		queryBuilder.append(" and e.folderId= '" + Integer.parseInt(folderId) + "'");
+		docID = (ArrayList) entityManager.createQuery(queryBuilder.toString()).getResultList();
+
+		return docID;
+
+	}
+
+	public DMSDocument getDocumentByDocId(Integer docId) {
+		return dmsDocumentRepository.findByDocId(docId);
+	}
+
+	// added by shadma
+	public List<DMSDocument> getDocumentsByKey(DocVO docVO) {
+
+		Predicate predicateValueDocNamePartial = null;
+		Predicate Predicate = null;
+
+		CriteriaBuilder cbuilder = entityManager.getCriteriaBuilder();
+
+		CriteriaQuery<DMSDocument> criteriaQuery = cbuilder.createQuery(DMSDocument.class);
+		Root<DMSDocument> rootc = criteriaQuery.from(DMSDocument.class);
+
+		if (null != docVO.getDataTag() && !docVO.getDataTag().isEmpty()) {
+			Predicate predicateValueDataTag = cbuilder.equal(rootc.get("dataTag"), docVO.getDataTag());
+			Predicate = predicateValueDataTag;
+		}
+
+		if (null != docVO.getDocumentName() && !docVO.getDocumentName().isEmpty()) {
+			Predicate predicateValueDocName = cbuilder.equal(rootc.get("documentName"), docVO.getDocumentName());
+
+			if (null != Predicate) {
+				Predicate = cbuilder.and(Predicate, predicateValueDocName);
+			} else {
+				Predicate = predicateValueDocName;
+			}
+		}
+
+		if (null != docVO.getPartialDocName() && !docVO.getPartialDocName().isEmpty()) {
+			for (String str : docVO.getPartialDocName().split(",")) {
+				if (null != predicateValueDocNamePartial) {
+					predicateValueDocNamePartial = cbuilder.or(predicateValueDocNamePartial,
+							cbuilder.like(rootc.get("documentName"), "%" + str + "%"));
+				} else {
+					predicateValueDocNamePartial = cbuilder.like(rootc.get("documentName"), "%" + str + "%");
+				}
+			}
+			if (null != Predicate) {
+				Predicate = cbuilder.and(Predicate, predicateValueDocNamePartial);
+			} else {
+				Predicate = predicateValueDocNamePartial;
+			}
+
+		}
+
+		criteriaQuery.where(Predicate);
+		List<DMSDocument> productSchemeList = entityManager.createQuery(criteriaQuery).getResultList();
+		return productSchemeList;
+
+	}
+	
+	public List<DMSFolder> getFolderByKey(DocVO docVO) {
+		
+		Predicate predicateValueDocNamePartial = null;
+		Predicate Predicate = null;
+
+		CriteriaBuilder cbuilder = entityManager.getCriteriaBuilder();
+		CriteriaQuery<DMSFolder> criteriaQuery = cbuilder.createQuery(DMSFolder.class);
+		Root<DMSFolder> rootc = criteriaQuery.from(DMSFolder.class);
+		
+		if (null != docVO.getDataTag() && !docVO.getDataTag().isEmpty()) {
+			Predicate predicateValueDataTag = cbuilder.equal(rootc.get("data_tag"), docVO.getDataTag());
+			Predicate = predicateValueDataTag;
+		}
+		
+		if (null != docVO.getFolderName() && !docVO.getFolderName().isEmpty()) {
+			Predicate predicateValuefolderName = cbuilder.like(rootc.get("folderName"), "%" +docVO.getFolderName()+ "%");
+		
+			
+			if (null != Predicate) {
+				Predicate = cbuilder.and(Predicate, predicateValuefolderName);
+			} else {
+				Predicate = predicateValuefolderName;
+			}
+		}
+		
+		criteriaQuery.where(Predicate);
+		List<DMSFolder> productSchemeList = entityManager.createQuery(criteriaQuery).getResultList();
+		return productSchemeList;
+		
+	}
+
+}
